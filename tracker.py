@@ -14,8 +14,9 @@ while True:
     ret, frame = cap.read()
     if not ret or frame is None:
         break
-
-    (class_ids, scores, boxes) = od.detect(frame)
+    x, y, _ = frame.shape
+    roi = frame[400:, :650]
+    (class_ids, scores, boxes) = od.detect(roi)
 
     center_points_cur_frame = []
     for (x1, y1, x2, y2) in boxes.astype(int):
@@ -25,7 +26,7 @@ while True:
 
     if count <= 2:
         for pt in center_points_cur_frame:
-            already_assigned = any(math.hypot(pt[0]-p[0], pt[1]-p[1]) < 20 for p in tracking_objects.values())
+            already_assigned = any(math.hypot(pt[0]-p[0], pt[1]-p[1]) < 50 for p in tracking_objects.values())
             if not already_assigned:
                 tracking_objects[track_id] = pt
                 track_id += 1
@@ -46,36 +47,35 @@ while True:
                     closest_pt = pt
 
             # Update track if close enough
-            if closest_pt is not None and closest_dist < 20:
+            if closest_pt is not None and closest_dist < 60:
                 tracking_objects[object_id] = closest_pt
                 object_exists = True
-                center_points_cur_frame.remove(closest_pt)  # claim it
+                if closest_pt in center_points_cur_frame:
+                    center_points_cur_frame.remove(closest_pt)  # claim it
 
             # Remove lost tracks
             if not object_exists:
                 tracking_objects.pop(object_id, None)
 
-        # Any remaining centers are new tracks
         for pt in center_points_cur_frame:
             tracking_objects[track_id] = pt
             track_id += 1
 
-    # --- Drawing (optional but very helpful) ---
-    # Draw boxes and centers
+
     for (x1, y1, x2, y2) in boxes.astype(int):
-        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-        cx = int((x1 + x2) / 2); cy = int((y1 + y2) / 2)
-        cv2.circle(frame, (cx, cy), 3, (0, 0, 255), -1)
+        cv2.rectangle(frame, (x1, y1+400), (x2, y2+400), (0, 255, 0), 2)
+        cx = int((x1 + x2) / 2)
+        cy = int((y1 + y2) / 2)
+        cv2.circle(frame, (cx, cy+400), 3, (255, 0, 0), -1)
 
     # Draw track IDs at their current center
     for object_id, (cx, cy) in tracking_objects.items():
-        cv2.putText(frame, f'ID {object_id}', (cx - 10, cy - 10),
+        cv2.putText(frame, f'ID {object_id}', (cx - 10, cy+400 - 30),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 0), 2)
-        cv2.circle(frame, (cx, cy), 4, (255, 255, 0), -1)
+        cv2.circle(frame, (cx, cy+400), 4, (255, 255, 0), -1)
 
     cv2.imshow("frame", frame)
 
-    # Prepare for next frame
     center_points_prev_frame = center_points_cur_frame
     count += 1
     key = cv2.waitKey(30)

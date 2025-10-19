@@ -11,7 +11,7 @@ class ObjectDetection:
 
 
     def detect(self, frame):
-        results = self.model.predict(source=frame, imgsz=640, conf=0.50)
+        results = self.model.predict(source=frame, imgsz=1280, conf=0.5)
 
         # Extract detections
         detections = results[0]
